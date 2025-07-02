@@ -8,8 +8,8 @@
 #include "device.h"
 #include "scicomm.h"
 
-#define NUM_PONTOS_WAVEFORM 1000
-
+#define TAM_BUFFER_DAC 200
+#define TAM_BUFFER_ADC 100
 
 int protocolReceiveInt(unsigned int sci_base)
 {
@@ -34,8 +34,8 @@ void protocolReceiveWaveForm(unsigned int sci_base, int waveform[])
     int num_pontos = protocolReceiveInt(sci_base);
 
     // Limita para evitar estouro do array
-    if (num_pontos > NUM_PONTOS_WAVEFORM) {
-        num_pontos = NUM_PONTOS_WAVEFORM;
+    if (num_pontos > TAM_BUFFER_DAC) {
+        num_pontos = TAM_BUFFER_DAC;
     }
 
     // Agora lê todos os pontos
@@ -50,7 +50,7 @@ void protocolSendWaveForm(unsigned int sci_base, int waveform[])
 {
     uint16_t txBuf[INT_SIZE];
 
-    for (int i = 0; i < NUM_PONTOS_WAVEFORM; i++)
+    for (int i = 0; i < TAM_BUFFER_ADC; i++)
     {
         txBuf[0] = (uint16_t)(waveform[i] & 0x00FF);
         txBuf[1] = (uint16_t)((waveform[i] >> 8U) & 0x00FF);

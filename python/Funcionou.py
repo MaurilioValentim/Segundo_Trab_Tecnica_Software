@@ -3,18 +3,27 @@ import struct
 import time
 import numpy as np
 import matplotlib.pyplot as plt
+import math
+import datetime
 
 # --- CONFIGURACOES ---
 # Altere esta para a porta COM correta do seu microcontrolador
 SERIAL_PORT = 'COM5'
 BAUD_RATE = 115200
 
+# Quantidade de valores da forma de onda que sera recebida
+NUM_RECEIVE_WAVEFORM = 100
+
+# Frequencia de Amostragem Base
+Fundamental = 60
+amostragem = 100
+
 # --- DEFINICOES DO PROTOCOLO (devem ser identicas as do C) ---
 # Comandos (do enum SCI_Command_e)
-CMD_RECEIVE_INT = 1 # Comando para o PC enviar um int para o 28379D
-CMD_SEND_INT    = 2 # Comando para o PC pedir um int para o 28379D
-CMD_RECEIVE_WAVEFORM = 3
-CMD_SEND_WAVEFORM = 4
+CMD_RECEIVE_INT = 1 # Comando para o PC enviar 
+CMD_SEND_INT    = 2 # Comando para o PC pedir
+CMD_RECEIVE_WAVEFORM = 3  # Comando para Receber a Senoide
+CMD_SEND_WAVEFORM = 4 # Comando para Enviar a Senoide
 
 def main():
     """Funcao principal que gerencia a conexao e o menu do usuario."""
@@ -28,8 +37,8 @@ def main():
 
             while True:
                 print("\n----- MENU -----")
-                print("1. Enviar um numero inteiro para o 28379D")
-                print("2. Receber um numero inteiro do 28379D")
+                print("1. Enviar um numero da Amostragem")
+                print("2. Receber um numero da Amostragem")
                 print("3. Enviar uma Senoide")
                 print("4. Receber uma Senoide")
                 print("0. Sair")
@@ -60,11 +69,13 @@ def send_int(ser_connection):
     Pede um numero ao usuario, o empacota e envia para o microcontrolador.
     """
     try:
-        num_str = input("Digite um numero inteiro para ENVIAR (entre -32768 e 32767): ")
+        num_str = input("Digite um numero da Amostragem para ENVIAR (entre 0 até 100): ")
         number_to_send = int(num_str)
-
-        if not -32768 <= number_to_send <= 32767:
-            print("ERRO: O numero esta fora do range permitido para um int16_t.")
+        global amostragem
+        amostragem = number_to_send
+        # if not -32768 <= number_to_send <= 32767:
+        if not 0 <= number_to_send <= 100:
+            print("ERRO: O numero esta fora do range permitido para a Amostragem.")
             return
 
         # Empacota o COMANDO e o DADO em uma sequencia de bytes.
@@ -105,7 +116,8 @@ def receive_int(ser_connection):
         # 3. Desempacota os bytes recebidos para um inteiro.
         #    Formato: '<' (Little-endian), 'h' (short, para o int16)
         received_number = struct.unpack('<h', response_data)[0]
-
+        global amostragem
+        amostragem = received_number
         print(f"  -> Numero recebido do 28379D: {received_number}")
 
     except Exception as e:
@@ -117,25 +129,15 @@ def send_waveform(ser_connection):
     e em seguida envia todos os pontos da forma de onda.
     """
     try:
-        freq = int(input("Digite a frequencia da Forma de onda (entre -32768 e 32767): "))
-        amp = int(input("Digite a Amplitude da Forma de onda (entre -32768 e 32767): "))
-        fase = int(input("Digite a Fase da Forma de onda (entre -32768 e 32767): "))
-        fs = 1000
-        duracao = 1
 
-        # Tempo
-        t = np.linspace(0, duracao, int(fs * duracao), endpoint=False)
+        vetor_dac = gerador_senoidal()
 
-        # Geração da Senoide
-        senoide = amp * np.sin(2 * np.pi * freq * t + fase)
-
-        # Normaliza e converte para int16
-        senoide_int = np.clip(np.round(senoide), -32768, 32767).astype(np.int16)
+        senoide_int = np.array(vetor_dac, dtype=np.int16)
         num_pontos = len(senoide_int)
 
         # Mostra a forma de onda
         plotagem(senoide_int)
-
+        print(senoide_int)
         # Envia o cabeçalho com o número de pontos
         # CMD_RECEIVE_WAVEFORM = 4, data_len = 2 (pois vamos enviar só um int16 com o número de pontos)
         header_packet = struct.pack('<Bhh', CMD_RECEIVE_WAVEFORM, 2, num_pontos)
@@ -155,13 +157,70 @@ def send_waveform(ser_connection):
     except Exception as e:
         print(f"Ocorreu um erro inesperado: {e}")
 
+def gerador_senoidal():
+        
+    freqs, amps_norm = parametros()
+
+    res_dac = 12
+    max_dac_val = (2 ** res_dac) - 1
+    offset = max_dac_val / 2.0
+
+    # Define a menor frequência para basear o tempo de um ciclo
+    menor_freq = min(freqs)
+    periodo_base = 1 / menor_freq
+    amostras_por_ciclo = 200  # Pode ajustar para mais resolução
+    ts = periodo_base / amostras_por_ciclo  # Intervalo de amostragem
+
+    dac_valores = []
+
+    for i in range(amostras_por_ciclo):
+        t = i * ts  # tempo real para a amostra
+        valor_senoide = 0
+        for freq, amp_norm in zip(freqs, amps_norm):
+            amp_dac = amp_norm * (max_dac_val / 2.0)
+            valor_senoide += amp_dac * math.sin(2 * math.pi * freq * t)
+
+        valor_total = offset + valor_senoide
+        valor_total = max(0, min(valor_total, max_dac_val))  # Saturação
+        dac_valores.append(int(round(valor_total)))
+
+
+    return dac_valores
+
+def parametros():
+    global Fundamental  
+
+    freqs = []
+    amplitudes = []
+
+    while True:
+        try:
+            freq = float(input("Digite a frequência (Hz): "))
+            amp = float(input("Digite a amplitude: "))
+        except ValueError:
+            print("Por favor, digite valores numéricos válidos.")
+            continue
+
+        if not freqs:
+            Fundamental = freq  # salva a primeira como fundamental
+
+        freqs.append(freq)
+        amplitudes.append(amp)
+
+        continuar = input("Deseja adicionar outra frequência/amplitude? (s/n): ").strip().lower()
+        if continuar != 's':
+            break
+
+    return freqs, amplitudes
+
+
 
 def receive_waveform(ser_connection):
     """
     Solicita todos os pontos da senoide ao microcontrolador via serial.
     """
     try:
-        num_points = 1000
+        num_points = NUM_RECEIVE_WAVEFORM
         # Envia o comando solicitando os dados da senoide
         request_packet = struct.pack('<Bh', CMD_SEND_WAVEFORM, 0)
         print(f"Enviando comando de solicitação: {request_packet.hex(' ')}")
@@ -176,22 +235,64 @@ def receive_waveform(ser_connection):
             return None
 
         # Desempacota todos os valores int16
-        formato = f'<{num_points}h'  # Exemplo: '<1000h'
+        formato = f'<{num_points}h'  
         senoide_recebida = struct.unpack(formato, response_data)
 
         print("Todos os dados foram recebidos com sucesso.")
 
-        plotagem(senoide_recebida)
+        senoide = retirar_valor_medio(senoide_recebida)
+
+        # Plotagem dos Graficos
+        plotagem(senoide)
+        plot_fft(senoide)
+        print(senoide)
 
     except Exception as e:
         print(f"Ocorreu um erro inesperado: {e}")
    
+def retirar_valor_medio(senoide):
+    dc = np.mean(senoide)
+    resultado = np.subtract(senoide,dc)
+    return resultado
+
 def plotagem(senoide):
     plt.plot(senoide)
     plt.title("Forma de Onda Recebida do Microcontrolador")
     plt.xlabel("Amostra")
     plt.ylabel("Amplitude")
     plt.grid(True)
+    plt.show()
+
+def plot_fft(signal):
+
+    FREQ_A = amostragem*Fundamental
+
+    res_dac = 12
+    max_dac_val = (2 ** res_dac) - 1
+    offset = max_dac_val / 2.0
+
+    # Converte para inteiros (se ainda não estiver)
+    signal = np.round(signal).astype(int)
+
+    # Remove offset e normaliza a amplitude
+    signal = (signal) / (max_dac_val / 2.0)
+    
+    #signal = np.round(signal).astype(int)
+    print("Sinal para o plot FFT")
+    print(signal)
+    N = len(signal)
+    # Transformar em inteiro
+    fft_result = np.fft.fft(signal)
+    fft_magnitude = np.abs(fft_result) / N
+    fft_magnitude = fft_magnitude[:N//2] * 2
+    freqs = np.fft.fftfreq(N, 1/FREQ_A)[:N//2]
+
+    plt.stem(freqs, fft_magnitude)
+    plt.title("FFT do Sinal")
+    plt.xlabel("Frequência (Hz)")
+    plt.ylabel("Magnitude")
+    plt.grid(True)
+    plt.tight_layout()
     plt.show()
 
 
