@@ -17,7 +17,7 @@ NUM_RECEIVE_WAVEFORM = 100
 # Frequencia de Amostragem Base
 Fundamental = 60
 # Parametro do ADC ( mudar caso aumente o vetor do ADC )
-amostragem = 100
+Amostragem = 100
 
 # Parametros do DAC 
 RESOLUCAO_DO_DAC = 12
@@ -76,8 +76,8 @@ def send_int(ser_connection):
     try:
         num_str = input("Digite um numero da Amostragem para ENVIAR (entre 0 até 100): ")
         number_to_send = int(num_str)
-        global amostragem
-        amostragem = number_to_send
+        global Amostragem
+        Amostragem = number_to_send
         # if not -32768 <= number_to_send <= 32767:
         if not 0 <= number_to_send <= 100:
             print("ERRO: O numero esta fora do range permitido para a Amostragem.")
@@ -121,8 +121,8 @@ def receive_int(ser_connection):
         # 3. Desempacota os bytes recebidos para um inteiro.
         #    Formato: '<' (Little-endian), 'h' (short, para o int16)
         received_number = struct.unpack('<h', response_data)[0]
-        global amostragem
-        amostragem = received_number
+        global Amostragem
+        Amostragem = received_number
         print(f"  -> Numero recebido do 28379D: {received_number}")
 
     except Exception as e:
@@ -174,7 +174,7 @@ def gerador_senoidal():
     menor_freq = min(freqs)
     periodo_base = 1 / menor_freq
     amostras_por_ciclo = AMOSTRAS_DO_DAC  
-    ts = periodo_base / amostras_por_ciclo  # Intervalo de amostragem
+    ts = periodo_base / amostras_por_ciclo  # Intervalo de Amostragem
 
     dac_valores = []
 
@@ -270,13 +270,13 @@ def plotagem(senoide):
 
 def plot_fft(signal):
 
-    FREQ_A = amostragem*Fundamental
+    fs = Amostragem*Fundamental
 
-    res_dac = 12
+    res_dac = RESOLUCAO_DO_DAC
     max_dac_val = (2 ** res_dac) - 1
     offset = max_dac_val / 2.0
 
-    # Converte para inteiros (se ainda não estiver)
+    # Converte para inteiros 
     signal = np.round(signal).astype(int)
 
     # Remove offset e normaliza a amplitude
@@ -290,7 +290,7 @@ def plot_fft(signal):
     fft_result = np.fft.fft(signal)
     fft_magnitude = np.abs(fft_result) / N
     fft_magnitude = fft_magnitude[:N//2] * 2
-    freqs = np.fft.fftfreq(N, 1/FREQ_A)[:N//2]
+    freqs = np.fft.fftfreq(N, 1/fs)[:N//2]
 
     plt.stem(freqs, fft_magnitude)
     plt.title("FFT do Sinal")

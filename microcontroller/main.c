@@ -22,7 +22,7 @@ volatile float gain = 1.0f;
 
 //
 volatile Protocol_Header_t g_prot_header = {CMD_NONE,0};
-volatile int g_dado;
+volatile int tam_buffer_adc;
 uint32_t clk = 20000000;
 //
 // Função Principal
@@ -49,14 +49,13 @@ void main(void)
             {
                 case CMD_RECEIVE_INT:
 
-                    g_dado = protocolReceiveInt(SCI0_BASE);
-                    tam_buffer_adc = g_dado;
+                    tam_buffer_adc = protocolReceiveInt(SCI0_BASE);
                     clk = SysCtl_getClock(XTAL_FREQ);
                     CPUTimer_setPeriod(CPUTIMER0_BASE, clk/(50*tam_buffer_adc)-1);
                     break;
 
                 case CMD_SEND_INT:
-                    protocolSendInt(SCI0_BASE, g_dado);
+                    protocolSendInt(SCI0_BASE, tam_buffer_adc);
                     break;
 
                 case CMD_RECEIVE_WAVEFORM:
