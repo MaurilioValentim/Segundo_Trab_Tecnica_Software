@@ -16,12 +16,17 @@ NUM_RECEIVE_WAVEFORM = 100
 
 # Frequencia de Amostragem Base
 Fundamental = 60
+# Parametro do ADC ( mudar caso aumente o vetor do ADC )
 amostragem = 100
+
+# Parametros do DAC 
+RESOLUCAO_DO_DAC = 12
+AMOSTRAS_DO_DAC = 200 # mudar caso aumente o vetor do DAC
 
 # --- DEFINICOES DO PROTOCOLO (devem ser identicas as do C) ---
 # Comandos (do enum SCI_Command_e)
-CMD_RECEIVE_INT = 1 # Comando para o PC enviar 
-CMD_SEND_INT    = 2 # Comando para o PC pedir
+CMD_RECEIVE_INT = 1 # Comando para o PC enviar numero da Amostragem
+CMD_SEND_INT    = 2 # Comando para o PC pedir numero da Amostragem
 CMD_RECEIVE_WAVEFORM = 3  # Comando para Receber a Senoide
 CMD_SEND_WAVEFORM = 4 # Comando para Enviar a Senoide
 
@@ -66,7 +71,7 @@ def main():
 
 def send_int(ser_connection):
     """
-    Pede um numero ao usuario, o empacota e envia para o microcontrolador.
+    Pede um numero da Amostragem ao usuario, o empacota e envia para o microcontrolador.
     """
     try:
         num_str = input("Digite um numero da Amostragem para ENVIAR (entre 0 até 100): ")
@@ -161,14 +166,14 @@ def gerador_senoidal():
         
     freqs, amps_norm = parametros()
 
-    res_dac = 12
+    res_dac = RESOLUCAO_DO_DAC
     max_dac_val = (2 ** res_dac) - 1
     offset = max_dac_val / 2.0
 
     # Define a menor frequência para basear o tempo de um ciclo
     menor_freq = min(freqs)
     periodo_base = 1 / menor_freq
-    amostras_por_ciclo = 200  # Pode ajustar para mais resolução
+    amostras_por_ciclo = AMOSTRAS_DO_DAC  
     ts = periodo_base / amostras_por_ciclo  # Intervalo de amostragem
 
     dac_valores = []
