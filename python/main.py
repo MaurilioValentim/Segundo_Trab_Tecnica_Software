@@ -201,10 +201,20 @@ def parametros():
     while True:
         try:
             freq = float(input("Digite a frequência (Hz): "))
-            amp = float(input("Digite a amplitude: "))
         except ValueError:
-            print("Por favor, digite valores numéricos válidos.")
+            print("Por favor, digite uma frequência numérica válida.")
             continue
+
+        # Loop para garantir amplitude válida
+        while True:
+            try:
+                amp = float(input("Digite a amplitude (de 0 até 1): "))
+                if 0 <= amp <= 1:
+                    break  
+                else:
+                    print("A amplitude deve estar entre 0 e 1. Tente novamente.")
+            except ValueError:
+                print("Por favor, digite um valor numérico válido para a amplitude.")
 
         if not freqs:
             Fundamental = freq  # salva a primeira como fundamental
@@ -217,7 +227,6 @@ def parametros():
             break
 
     return freqs, amplitudes
-
 
 
 def receive_waveform(ser_connection):
