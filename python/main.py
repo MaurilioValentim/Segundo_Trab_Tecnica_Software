@@ -262,7 +262,7 @@ def retirar_valor_medio(senoide):
 
 def plotagem(senoide):
     plt.plot(senoide)
-    plt.title("Forma de Onda Recebida do Microcontrolador")
+    plt.title("Forma de Onda")
     plt.xlabel("Amostra")
     plt.ylabel("Amplitude")
     plt.grid(True)
@@ -303,3 +303,11 @@ def plot_fft(signal):
 
 if __name__ == "__main__":
     main()
+
+#   50*10 = 500 ---> 250
+#   
+#   50      0.5         50
+#   200     0.2         200
+#   650     0.1         150
+#   1100    0.1         100
+#
