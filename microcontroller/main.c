@@ -11,19 +11,20 @@
 
 //
 
-#define TAM_BUFFER_ADC 100
-#define TAM_BUFFER_DAC 200
-#define XTAL_FREQ 10000000
+#define TAM_BUFFER_ADC 100  // Tamanho do Vetor do ADC
+#define TAM_BUFFER_DAC 200  // Tamanho do Vetor do DAC
+#define XTAL_FREQ 10000000  // Frequencia do Microcontrolador
 
-volatile int tam_buffer_adc = 100;
-int dac_buffer[TAM_BUFFER_DAC];
-int adc_buffer[TAM_BUFFER_ADC];
-volatile float gain = 1.0f;
+#define FREQ_FUNDAMENTAL 50   // Frequencia Fundamental da Senoide que será enviada
+
+volatile int tam_buffer_adc = 100;  // Frequencia da Amostragem do ADC
+int dac_buffer[TAM_BUFFER_DAC]; // Vetor das Amostras do DAC
+int adc_buffer[TAM_BUFFER_ADC]; // Vetor das Amostras do ADC
+volatile float gain = 1.0f; // Ganho dos valores de saida do DAC
 
 //
-volatile Protocol_Header_t g_prot_header = {CMD_NONE,0};
-volatile int tam_buffer_adc;
-uint32_t clk = 20000000;
+volatile Protocol_Header_t g_prot_header = {CMD_NONE,0};    // Protocolo doa comandos para a comunicação
+uint32_t clk = 20000000;    // Clock do microcontrolador
 //
 // Função Principal
 //
@@ -51,7 +52,7 @@ void main(void)
 
                     tam_buffer_adc = protocolReceiveInt(SCI0_BASE);
                     clk = SysCtl_getClock(XTAL_FREQ);
-                    CPUTimer_setPeriod(CPUTIMER0_BASE, clk/(50*tam_buffer_adc)-1);
+                    CPUTimer_setPeriod(CPUTIMER0_BASE, clk/(FREQ_FUNDAMENTAL*tam_buffer_adc)-1);
                     break;
 
                 case CMD_SEND_INT:
@@ -91,7 +92,7 @@ __interrupt void INT_SCI0_RX_ISR(void)
     Interrupt_clearACKGroup(INT_SCI0_RX_INTERRUPT_ACK_GROUP);
 }
 
-// DaC e ADC
+//  Interrupção do ADC
 
 __interrupt void INT_ADC0_1_ISR(void)
 {
@@ -102,6 +103,8 @@ __interrupt void INT_ADC0_1_ISR(void)
     Interrupt_clearACKGroup(INT_ADC0_1_INTERRUPT_ACK_GROUP);
 
 }
+
+//  Interrupção do DAC
 
 __interrupt void INT_myCPUTIMER1_ISR(void)
 {
